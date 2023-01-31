@@ -5,11 +5,11 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
 import java.nio.charset.Charset;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import com.example.springpracticeagain.Service.CloudStorageService;
 import com.google.api.gax.paging.Page;
 import com.google.cloud.storage.*;
-import com.google.common.collect.Iterables;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
@@ -39,14 +39,25 @@ public class GcsController {
     @GetMapping("/moveToProcessing")
     public void readIncomingFolder() throws IOException {
         Storage storage = StorageOptions.getDefaultInstance().getService();
-        Page<Blob> blobs =
+        AtomicInteger itemCount = new AtomicInteger(); // Lazy counting the items in the folder
+        Page<Blob> incomingBlobs =
                 storage.list(
                         "abi-buckets",
                         Storage.BlobListOption.prefix("Incoming"));
+        incomingBlobs.iterateAll().forEach(blob -> {
+            itemCount.set(itemCount.get() + 1);     // cant just do itemcount++?? bc lambda.  have to use a wrapper
+            //log.info(blob.getName());
+        });
+        log.info("ITEM COUNT: " + itemCount);
 
+    }
+
+    @GetMapping("/createFiles") // Print Folder Contents
+    public void createFiles(){
+        Storage storage = StorageOptions.getDefaultInstance().getService();
         Bucket bucket = storage.get("abi-buckets");
         // make a bunch of objects?
-        for (int i = 0; i < 20; i++) {
+        for (int i = 0; i < 40; i++) {
             BlobId blobId = saveString("Incoming/blob" + i, "abcdegdjejsnyebdek", bucket);
             BlobInfo blobInfo = BlobInfo.newBuilder(blobId).setContentType("text/plain").build();
             Blob blob = storage.create(blobInfo,"abcdegdjejsnyebdek".getBytes(UTF_8));
